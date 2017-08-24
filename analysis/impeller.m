@@ -12,10 +12,12 @@
 % 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 function pressure_flow_curve = impeller(B1_degrees,B2_degrees)
 	% Models characteristics of an impeller with B1_degrees and B2_degrees.
+	format short g;
 	pressure_flow_curve = []
-	for rpm=3000:400:5400
+	#for rpm=3000:400:5400
+	rpm=5400
 		pressure_flow_curve = [pressure_flow_curve; characterize_impeller(rpm,B1_degrees,B2_degrees)];
-	end
+	#end
 end
 
 function pressure_flow = tune(B2_degrees)
@@ -57,7 +59,6 @@ end
 # pressure=12, then flow won't change as much when adjusting pressure.
 
 function pressureflow = characterize_impeller(rpm,B1_degrees,B2_degrees)
-
 deg_to_rad_coeff = (pi)/180;
 g_m_per_s2 = 9.80665;
 cmH2O_to_pascal_coeff = 98.0665;
@@ -104,7 +105,7 @@ B1_rads = B1_degrees * deg_to_rad_coeff;
 #  Should be at or near 90 degrees, as this way head (pressure) will not vary with flow.
 #  As we'd need more flow more larger lungs, without changing the pressure setpoint.
 #B2_degrees = 45;
-B2_rads = B2_degrees * deg_to_rad_coeff;
+B2_ideal_rads = B2_degrees * deg_to_rad_coeff;
 # A1 is angle fluid enters the impeller, for best efficiency assumed 90 degrees
 A1_degrees = 90;
 A1_rads = A1_degrees * deg_to_rad_coeff;
@@ -120,15 +121,16 @@ w_rad_per_min=rpm*2*pi;
 w_rad_per_sec=w_rad_per_min/60;
 r1_m = 0.01;
 r2_m = 0.08;
+N_Blades = 9;
 
 #--------------------
 # Inlet Triangle
 # inlet impeller tip speed
 # U is perepheral velocity vector
 #disp("---Inlet Triangle---");
-U1_m_per_sec = w_rad_per_sec * r1_m;
+U1_m_per_sec = w_rad_per_sec * r1_m
 # Impeller tip speed
-U2_m_per_sec = w_rad_per_sec * r2_m;
+U2_m_per_sec = w_rad_per_sec * r2_m
 # U2 = pi*D[m]*N[rpm]/60[s]
 #disp(sprintf('U1 cm_per_sec: %f U2 cm_per_sec: %f', U1_cm_per_sec, U2_cm_per_sec));
 
@@ -137,21 +139,21 @@ U2_m_per_sec = w_rad_per_sec * r2_m;
 
 # W is relative velocity vector (of the fluid passing through the impeller passages)
 # b is angle between W and V's origin (blade angle)
-W1_m_per_sec = U1_m_per_sec*sin(A1_rads)/sin(C1_rads);
-# V is absolute velocity vector
+W1_m_per_sec = U1_m_per_sec*sin(A1_rads)/sin(C1_rads)
+# V is absolute velocity vector, sometimes labeled as C in textbooks
 # a is angle between U and V's origin
 # From Principles of Turbomachinery Figure 1.4 and Law of Cosines (https://academic.evergreen.edu/projects/biophysics/technotes/misc/trig.htm)
 #V1_cm_per_sec = sqrt(W1_cm_per_sec^2+U1_cm_per_sec^2-2*W1_cm_per_sec*U1_cm_per_sec*cos(B1_rads))
 # But I think sin/cos forumla is more efficient/simpler
-V1_m_per_sec = U1_m_per_sec*sin(B1_rads)/sin(C1_rads);
+V1_m_per_sec = U1_m_per_sec*sin(B1_rads)/sin(C1_rads)
 #Vr is notated as Vm in Centrifugal and Rotary Pumps Fundamentals and Applications, Vm is called a "meriodional" velocity (a component of the absolute velocity into the meriodional direction)
-Vr1_m_per_sec = sin(A1_rads) * V1_m_per_sec;
+Vr1_m_per_sec = sin(A1_rads) * V1_m_per_sec
 # As A1 is 90 degrees, at inlet Vr1=V1, and Vu1=0
 # Vu is the component of absolute velocity in the tangental direction
 # As A1=90 then Vu1=0, but for completion lets compute Vu1 in the event a1 isn't 90 degrees
-Vu1_m_per_sec= cos(A1_rads) * V1_m_per_sec;
+Vu1_m_per_sec= cos(A1_rads) * V1_m_per_sec
 if A1_degrees == 90
-    assert(Vu1_m_per_sec,0,0.0001)
+	assert(Vu1_m_per_sec,0,0.0001)
 end
 
 # Flude Mechanics and Turbo Design section 2.2
@@ -173,32 +175,39 @@ Am1_m2 = 2 * pi * r1_m * b1_m;
 Am2_m2 = 2 * pi * r2_m * b2_m;
 
 # Q_in is the volume flow rate entering the impeller
-Q_in_m3_per_sec = Am1_m2 * Vr1_m_per_sec;
+Q_in_m3_per_sec = Am1_m2 * Vr1_m_per_sec
 # m_dot is the mass flow rate
-m_dot_mass_flow_rate_kg_per_sec = rho_ambient_air_density_kg_per_m3 * Q_in_m3_per_sec;
+m_dot_mass_flow_rate_kg_per_sec = rho_ambient_air_density_kg_per_m3 * Q_in_m3_per_sec
 # Q_out is the volume flow rate leaving the impeller, must take into account different pressure
 # TODO: I may have made an error here by "setting" outlet pressure and not determinining it by impeller chararcteristics
 #Q_out_cm3_per_sec = A2_cm2 * Vr2_cm_per_sec
-Q_out_m3_per_sec = m_dot_mass_flow_rate_kg_per_sec / rho_ventilator_pressure_air_density_kg_per_m3;
+Q_out_m3_per_sec = m_dot_mass_flow_rate_kg_per_sec / rho_ventilator_pressure_air_density_kg_per_m3
 
 #--------------------
 # Outlet Triangle
 #disp("---Outlet Triangle---");
-Vr2_m_per_sec = Q_out_m3_per_sec / Am2_m2;
-Wu2_m_per_sec = Vr2_m_per_sec * cot(B2_rads);
-Vu2_m_per_sec = U2_m_per_sec - Wu2_m_per_sec;
+# Swain - "IMPACT OF IMPELLER BLADE TRIMMING ON THE PERFORMANCE OF CENTRIFUGAL COMPRESSORS" §1.2.4
+# Swain shows a popular slip model proposed by Stodola (and alludes to a better jet/wake model):
+Vus_m_per_sec = (pi * U2_m_per_sec * cos(B2_ideal_rads)) / N_Blades
+Vr2_m_per_sec = Q_out_m3_per_sec / Am2_m2
+Wu2_ideal_m_per_sec = Vr2_m_per_sec * cot(B2_ideal_rads)
+Vu2_ideal_m_per_sec = U2_m_per_sec - Wu2_ideal_m_per_sec
+Vu2_m_per_sec = Vu2_ideal_m_per_sec - Vus_m_per_sec
+Wu2_m_per_sec = U2_m_per_sec - Vu2_m_per_sec
+# TODO: Derive ideal/actual B2_rads and A2_rads
+B2_slip_rads = acot(Wu2_m_per_sec/Vr2_m_per_sec);
 #W2_cm_per_sec = sqrt(U2_cm_per_sec^2+V2_cm_per_sec^2 - 2*U2_cm_per_sec*V2_cm_per_sec * cos(A2_rads))
 # Simpler W2 eqn 26 from Centrifugal and Rotary Pumps Fundamentals
-W2_m_per_sec = Vr2_m_per_sec / sin(B2_rads);
+W2_m_per_sec = Vr2_m_per_sec / sin(B2_slip_rads)
 A2_rads = atan(Vr2_m_per_sec / Vu2_m_per_sec);
-A2_degrees = A2_rads / deg_to_rad_coeff;
+A2_degrees = A2_rads / deg_to_rad_coeff
 #V2_cm_per_sec = sqrt(Vr2_cm_per_sec^2+Vu2_cm_per_sec^2)
-V2_m_per_sec = Vr2_m_per_sec / sin(A2_rads);
+V2_m_per_sec = Vr2_m_per_sec / sin(A2_rads)
 #disp(sprintf('V1 cm_per_sec: %f V2 cm_per_sec: %f', V1_cm_per_sec, V2_cm_per_sec))
 #disp(sprintf('W1 cm_per_sec: %f W2 cm_per_sec: %f', W1_cm_per_sec, W2_cm_per_sec))
 
 #--------------------
-# Head Calculation
+# Theoretical Head Calculation
 # Principles of Turbomachinery gH_E is the work done per unit mass, eqn 1.3
 # Principles of Turbomachinery eqn 1.9, 1.10, and 1.11
 #  gH_E = u2*Vu2 - u1*Vu1
@@ -206,10 +215,10 @@ V2_m_per_sec = Vr2_m_per_sec / sin(A2_rads);
 #  gH_E = sqrt(V2^2-V1^2)+(u2^2-u1^2)+(W1^2-W2^2))
 #gH_E = U2_cm_per_sec *Vu2_cm_per_sec-U1_cm_per_sec*Vu1_cm_per_sec
 #disp("---Head Calculation---");
-gH_E_m2_per_s2 = U2_m_per_sec * Vu2_m_per_sec - U1_m_per_sec * Vu1_m_per_sec;
+gH_E_m2_per_s2 = U2_m_per_sec * Vu2_m_per_sec - U1_m_per_sec * Vu1_m_per_sec
 # m^2/s^2 is the same units as J/kg
-gH_E_J_per_kg = gH_E_m2_per_s2;
-H_m = U2_m_per_sec * Vu2_m_per_sec / g_m_per_s2;
+gH_E_J_per_kg = gH_E_m2_per_s2
+H_m = U2_m_per_sec * Vu2_m_per_sec / g_m_per_s2
 
 #--------------------
 # Delta Pressure
@@ -243,7 +252,9 @@ Qtarget_m3_per_sec = inhalation_liters_per_second / 1000;
 # m_dot is the mass flow rate
 # T is torque in kg*m^2/s^2 (or Nm as N=kgm/s^2)
 # T = m_dot * (Vu1*r1-Vu2*r2)
-Torque_Nm = m_dot_mass_flow_rate_kg_per_sec * (Vu1_m_per_sec*r1_m-Vu2_m_per_sec*r2_m);
+# Swain - "IMPACT OF IMPELLER BLADE TRIMMING ON THE PERFORMANCE OF CENTRIFUGAL COMPRESSORS" §1.2.4
+# T = (m_dot + m_dot_fluid_leakage) * (cu2*r2 - cu1*r1) + T_F_torque_input_adsorbed_by_disk_friction
+Torque_Nm = m_dot_mass_flow_rate_kg_per_sec * (Vu1_m_per_sec*r1_m - Vu2_m_per_sec*r2_m);
 P_rot = Torque_Nm * w_rad_per_sec;
 P_rot_To_Watts_coeff = 0.1047;
 P_rot_watts = P_rot * P_rot_To_Watts_coeff;
@@ -251,13 +262,38 @@ P_rot_watts = P_rot * P_rot_To_Watts_coeff;
 #P_electrical_watts = P_rot_watts + P_loss_J_per_s;
 #P_electrical_amps = P_electrical_watts / 12;
 
+#--------------------
+# Impeller Height Calculation
+# Swain - "IMPACT OF IMPELLER BLADE TRIMMING ON THE PERFORMANCE OF CENTRIFUGAL COMPRESSORS" §1.2.2,§2.1
 # Following is for liquid... :-( Need gas formula
 # TODO: Get gas formula so that no online calculator necessary
+# TODO: Is the flow coefficient formula given on page 6 the appropriate one?
 Flow_Factor = (Q_in_m3_per_sec*60*60) * sqrt(1/(delta_pressure_Pascals/1000)); #Metric
-Flow_Coefficient = Flow_Factor * 1.16; #Imperial
-# Get z/D2 ratio, solve for z (optimal axial length) file:///tmp/Swain_grad.msu_0128D_13306.pdf
+Flow_Coefficient = Flow_Factor * 1.16 #Imperial
+Flow_Coefficient_page6 = 4*Q_in_m3_per_sec/(pi*r2_m*2*U2_m_per_sec)
+# Get z/D2 ratio, solve for z (optimal axial length)
 # Online calculator lookup is 1.9500cm
 a_m = (0.084375 + 1.5625 * Flow_Coefficient) * r2_m
+# TODO! Should Blade length be deduced from B1,B2,r1,r2,and a_m? Or pulled out of CAD model?
+# For now approximate as triangle at base of blade... seems to be a good approximation but doesn't
+# consider B1/B2 skew.
+Blade_length_m = sqrt(a_m^2+(r2_m-r1_m)^2)
+
+#--------------------
+# 1D Loss Calculation
+# Patel, Joshi - "Effect of Impeller Blade Exit Angle on the Performance of Centrifugal Pump"
+# Won't be as accurate as 2D, pseudo 3D, or 3D modeling, but appears reasonably close.
+# Hydraulic Losses in Impeller
+# loss_impeller = loss_impller_friction_mixing + loss_impeller_shock
+W_average_m_per_sec = (W1_m_per_sec + W2_m_per_sec)/2;
+# TODO: Coefficient of dissipation? Is this the diffusion ratio?
+C_d = 1;
+# TODO: This was a guess, need example
+Diameter_hydralic = (r1_m+b1_m)*2;
+loss_impeller_friction_mixing = 4*C_d*(Blade_length_m/Diameter_hydralic)*(W_average_m_per_sec/U2_m_per_sec)^2
+# TODO: I don't know what inlet throat means..., or inlet mean...
+loss_impeller_shock = 0.3*(W1_m_per_sec/U2_m_per_sec)^2
+loss_impeller = loss_impeller_friction_mixing + loss_impeller_shock
 
 pressureflow = [rpm,Q_out_m3_per_sec,delta_pressure_cmH2O,P_rot_watts];
 end
